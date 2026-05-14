@@ -1,10 +1,8 @@
-use crossterm::cursor::MoveTo;
 use crossterm::event::Event;
 use crossterm::event::{Event::Key, KeyCode::Char, KeyEvent, KeyModifiers, read};
-use crossterm::execute;
-use crossterm::style::Print;
-use crossterm::terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode};
-use std::io::{Error, stdout};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+
+use crate::terminal::Terminal;
 
 pub struct Editor {
     should_quit: bool,
@@ -16,40 +14,17 @@ impl Editor {
     }
 
     pub fn run(&mut self) {
-        Self::initialize().unwrap();
+        Terminal::initialize().unwrap();
         let result = self.repl();
-        Self::terminate().unwrap();
+        Terminal::terminate().unwrap();
         result.unwrap();
     }
 
-    fn initialize() -> Result<(), std::io::Error> {
-        enable_raw_mode()?;
-        Self::clear_screen()?;
-        Self::draw_rows()
-    }
-
-    fn terminate() -> Result<(), std::io::Error> {
-        disable_raw_mode()
-    }
-
-    fn clear_screen() -> Result<(), std::io::Error> {
-        let mut stdout = stdout();
-        execute!(stdout, Clear(ClearType::All))
-    }
-
     fn draw_rows() -> Result<(), std::io::Error> {
-        let terminal_size = crossterm::terminal::size();
-        let mut stdout = stdout();
-        match terminal_size {
-            Ok((_, y)) => {
-                for row in 0..=y {
-                    execute!(stdout, MoveTo(0, row))?;
-                    execute!(stdout, Print("~"))?;
-                }
-            }
-            Err(err) => {
-                return Err(err);
-            }
+        let height = Terminal::size()?.1;
+        for current_row in 0..height {
+            Terminal::move_cursor_to(0, current_row)?;
+            Terminal::print("~")?;
         }
         Ok(())
     }
@@ -85,8 +60,11 @@ impl Editor {
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         if self.should_quit {
-            Self::clear_screen()?;
+            Terminal::clear_screen()?;
             print!("Goodbye.\r\n");
+        } else {
+            Self::draw_rows()?;
+            Terminal::move_cursor_to(0, 0)?;
         }
         Ok(())
     }
