@@ -4,6 +4,7 @@ use std::{
 };
 
 use crossterm::{
+    Command,
     cursor::{Hide, MoveTo, Show},
     queue,
     style::Print,
@@ -12,13 +13,11 @@ use crossterm::{
 
 pub struct Terminal {}
 
-#[derive(Copy, Clone)]
 pub struct Size {
     pub width: u16,
     pub height: u16,
 }
 
-#[derive(Copy, Clone)]
 pub struct Position {
     pub x: u16,
     pub y: u16,
@@ -38,31 +37,28 @@ impl Terminal {
     }
 
     pub fn clear_screen() -> io::Result<()> {
-        queue!(stdout(), Clear(ClearType::All))
+        Self::queue_command(Clear(ClearType::All))
     }
 
     pub fn clear_line() -> io::Result<()> {
-        queue!(stdout(), Clear(ClearType::CurrentLine))
+        Self::queue_command(Clear(ClearType::CurrentLine))
     }
 
     pub fn move_cursor_to(position: Position) -> io::Result<()> {
         let Position { x, y } = position;
-        queue!(stdout(), MoveTo(x, y))
+        Self::queue_command(MoveTo(x, y))
     }
 
     pub fn hide_cursor() -> io::Result<()> {
-        queue!(stdout(), Hide)
+        Self::queue_command(Hide)
     }
 
     pub fn show_cursor() -> io::Result<()> {
-        queue!(stdout(), Show)
+        Self::queue_command(Show)
     }
 
-    pub fn print<T>(content: T) -> io::Result<()>
-    where
-        T: Display,
-    {
-        queue!(stdout(), Print(content))
+    pub fn print(content: impl Display) -> io::Result<()> {
+        Self::queue_command(Print(content))
     }
 
     pub fn execute() -> io::Result<()> {
@@ -72,5 +68,10 @@ impl Terminal {
     pub fn size() -> io::Result<Size> {
         let (width, height) = size()?;
         Ok(Size { width, height })
+    }
+
+    fn queue_command<T: Command>(command: T) -> io::Result<()> {
+        queue!(stdout(), command)?;
+        Ok(())
     }
 }
