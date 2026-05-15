@@ -1,22 +1,35 @@
 use std::{
     fmt::Display,
-    io::{self, stdout},
+    io::{self, Write, stdout},
 };
 
 use crossterm::{
-    cursor::MoveTo,
-    execute,
+    cursor::{Hide, MoveTo, Show},
+    queue,
     style::Print,
     terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode, size},
 };
 
 pub struct Terminal {}
 
+#[derive(Copy, Clone)]
+pub struct Size {
+    pub width: u16,
+    pub height: u16,
+}
+
+#[derive(Copy, Clone)]
+pub struct Position {
+    pub x: u16,
+    pub y: u16,
+}
+
 impl Terminal {
     pub fn initialize() -> io::Result<()> {
         enable_raw_mode()?;
         Self::clear_screen()?;
-        Self::move_cursor_to(0, 0)?;
+        Self::move_cursor_to(Position { x: 0, y: 0 })?;
+        Self::execute()?;
         Ok(())
     }
 
@@ -25,21 +38,39 @@ impl Terminal {
     }
 
     pub fn clear_screen() -> io::Result<()> {
-        execute!(stdout(), Clear(ClearType::All))
+        queue!(stdout(), Clear(ClearType::All))
     }
 
-    pub fn move_cursor_to(x: u16, y: u16) -> io::Result<()> {
-        execute!(stdout(), MoveTo(x, y))
+    pub fn clear_line() -> io::Result<()> {
+        queue!(stdout(), Clear(ClearType::CurrentLine))
+    }
+
+    pub fn move_cursor_to(position: Position) -> io::Result<()> {
+        let Position { x, y } = position;
+        queue!(stdout(), MoveTo(x, y))
+    }
+
+    pub fn hide_cursor() -> io::Result<()> {
+        queue!(stdout(), Hide)
+    }
+
+    pub fn show_cursor() -> io::Result<()> {
+        queue!(stdout(), Show)
     }
 
     pub fn print<T>(content: T) -> io::Result<()>
     where
         T: Display,
     {
-        execute!(stdout(), Print(content))
+        queue!(stdout(), Print(content))
     }
 
-    pub fn size() -> io::Result<(u16, u16)> {
-        size()
+    pub fn execute() -> io::Result<()> {
+        stdout().flush()
+    }
+
+    pub fn size() -> io::Result<Size> {
+        let (width, height) = size()?;
+        Ok(Size { width, height })
     }
 }
