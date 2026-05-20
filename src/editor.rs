@@ -3,11 +3,8 @@ use std::io;
 use crossterm::event::Event;
 use crossterm::event::{Event::Key, KeyCode, KeyEvent, KeyModifiers, read};
 
-use crate::terminal::{CursorMove, Size, Terminal};
+use crate::terminal::{CursorMove, Terminal};
 use crate::view::View;
-
-const NAME: &str = env!("CARGO_PKG_NAME");
-const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Default)]
 pub struct Editor {
@@ -83,7 +80,6 @@ impl Editor {
             self.terminal.print("Goodbye.\r\n")?;
         } else {
             self.render()?;
-            self.draw_welcome_message()?;
             self.terminal.move_cursor_to(CursorMove::Position {
                 x: self.terminal.cursor_location.x,
                 y: self.terminal.cursor_location.y,
@@ -96,19 +92,5 @@ impl Editor {
 
     fn render(&mut self) -> io::Result<()> {
         self.view.render(&mut self.terminal)
-    }
-
-    fn draw_welcome_message(&mut self) -> io::Result<()> {
-        let mut welcome_message = format!("{NAME} editor -- version {VERSION}");
-        let Size { width, height } = self.terminal.size()?;
-        let offset_y = 2_usize;
-        #[allow(clippy::integer_division)]
-        self.terminal.move_cursor_to(CursorMove::Position {
-            x: (width.saturating_sub(welcome_message.len())) / 2,
-            y: height.saturating_sub(offset_y),
-        })?;
-        welcome_message.truncate(width.saturating_sub(1_usize));
-        self.terminal.print(welcome_message)?;
-        Ok(())
     }
 }

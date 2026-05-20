@@ -1,5 +1,8 @@
-use crate::terminal::{CursorMove, Terminal};
+use crate::terminal::{CursorMove, Size, Terminal};
 use std::io;
+
+const NAME: &str = env!("CARGO_PKG_NAME");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Default)]
 pub struct View;
@@ -12,8 +15,28 @@ impl View {
                 y: current_row,
             })?;
             terminal.clear_line()?;
+            if current_row == 0 {
+                terminal.print("Hello, World!")?;
+                continue;
+            }
             terminal.print("~")?;
         }
+
+        self.draw_welcome_message(terminal)?;
+        Ok(())
+    }
+
+    pub fn draw_welcome_message(&mut self, terminal: &mut Terminal) -> io::Result<()> {
+        let mut welcome_message = format!("{NAME} editor -- version {VERSION}");
+        let Size { width, height } = terminal.size()?;
+        let offset_y = 2_usize;
+        #[allow(clippy::integer_division)]
+        terminal.move_cursor_to(CursorMove::Position {
+            x: (width.saturating_sub(welcome_message.len())) / 2,
+            y: height.saturating_sub(offset_y),
+        })?;
+        welcome_message.truncate(width.saturating_sub(1_usize));
+        terminal.print(welcome_message)?;
         Ok(())
     }
 }
