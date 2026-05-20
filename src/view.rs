@@ -1,11 +1,16 @@
-use crate::terminal::{CursorMove, Size, Terminal};
+use crate::{
+    buffer::Buffer,
+    terminal::{CursorMove, Size, Terminal},
+};
 use std::io;
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Default)]
-pub struct View;
+pub struct View {
+    buffer: Buffer,
+}
 
 impl View {
     pub fn render(&mut self, terminal: &mut Terminal) -> io::Result<()> {
@@ -15,8 +20,8 @@ impl View {
                 y: current_row,
             })?;
             terminal.clear_line()?;
-            if current_row == 0 {
-                terminal.print("Hello, World!")?;
+            if let Some(line) = self.buffer.lines.get(current_row) {
+                terminal.print(line)?;
                 continue;
             }
             terminal.print("~")?;
