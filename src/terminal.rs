@@ -1,4 +1,5 @@
 use std::{
+    cmp::{max, min},
     fmt::Display,
     io::{self, Write, stdout},
 };
@@ -11,66 +12,178 @@ use crossterm::{
     terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode, size},
 };
 
-pub struct Terminal {}
+#[derive(Copy, Clone, Default)]
+pub struct Location {
+    pub x: usize,
+    pub y: usize,
+}
 
+#[derive(Default)]
+pub struct Terminal {
+    pub cursor_location: Location,
+    pub queue_cursor_location: Location,
+}
+
+#[derive(Copy, Clone)]
 pub struct Size {
-    pub width: u16,
-    pub height: u16,
+    pub width: usize,
+    pub height: usize,
 }
 
-pub struct Position {
-    pub x: u16,
-    pub y: u16,
+#[derive(Copy, Clone)]
+pub enum CursorMove {
+    Position { x: usize, y: usize },
+    MoveUp(usize),
+    MoveDown(usize),
+    MoveLeft(usize),
+    MoveRight(usize),
+    MoveTop,
+    MoveBottom,
+    MoveLineEnd,
+    MoveLineStart,
 }
 
+#[allow(clippy::unused_self)]
 impl Terminal {
-    pub fn initialize() -> io::Result<()> {
+    pub fn initialize(&mut self) -> io::Result<()> {
         enable_raw_mode()?;
-        Self::clear_screen()?;
-        Self::move_cursor_to(Position { x: 0, y: 0 })?;
-        Self::execute()?;
+        self.clear_screen()?;
+        self.execute()?;
         Ok(())
     }
 
-    pub fn terminate() -> io::Result<()> {
+    pub fn terminate(&self) -> io::Result<()> {
         disable_raw_mode()
     }
 
-    pub fn clear_screen() -> io::Result<()> {
-        Self::queue_command(Clear(ClearType::All))
+    pub fn clear_screen(&self) -> io::Result<()> {
+        self.queue_command(Clear(ClearType::All))
     }
 
-    pub fn clear_line() -> io::Result<()> {
-        Self::queue_command(Clear(ClearType::CurrentLine))
+    pub fn clear_line(&self) -> io::Result<()> {
+        self.queue_command(Clear(ClearType::CurrentLine))
     }
 
-    pub fn move_cursor_to(position: Position) -> io::Result<()> {
-        let Position { x, y } = position;
-        Self::queue_command(MoveTo(x, y))
+    /// Moves the cursor to the given Position.
+    /// # Arguments
+    /// * `Position` - the  `Position`to move the cursor to. Will be truncated to `u16::MAX` if bigger.
+    #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
+    pub fn move_cursor_to(&mut self, cursor_move: CursorMove) -> io::Result<()> {
+        match cursor_move {
+            CursorMove::Position { x, y } => {
+                self.queue_command(MoveTo(x as u16, y as u16))?;
+                self.set_queue_cursor_location(Location { x, y });
+            }
+            CursorMove::MoveUp(n) => {
+                let new_y = max(0, self.queue_cursor_location.y.saturating_sub(n));
+                self.queue_command(MoveTo(self.queue_cursor_location.x as u16, new_y as u16))?;
+                self.set_queue_cursor_location(Location {
+                    x: self.queue_cursor_location.x,
+                    y: new_y,
+                });
+            }
+            CursorMove::MoveDown(n) => {
+                let new_y = min(
+                    self.size()?.height,
+                    self.queue_cursor_location.y.saturating_add(n),
+                );
+                self.queue_command(MoveTo(self.queue_cursor_location.x as u16, new_y as u16))?;
+                self.set_queue_cursor_location(Location {
+                    x: self.queue_cursor_location.x,
+                    y: new_y,
+                });
+            }
+            CursorMove::MoveLeft(n) => {
+                let new_x = max(0, self.queue_cursor_location.x.saturating_sub(n));
+                self.queue_command(MoveTo(new_x as u16, self.queue_cursor_location.y as u16))?;
+                self.set_queue_cursor_location(Location {
+                    x: new_x,
+                    y: self.queue_cursor_location.y,
+                });
+            }
+            CursorMove::MoveRight(n) => {
+                let new_x = min(
+                    self.size()?.width,
+                    self.queue_cursor_location.x.saturating_add(n),
+                );
+                self.queue_command(MoveTo(new_x as u16, self.queue_cursor_location.y as u16))?;
+                self.set_queue_cursor_location(Location {
+                    x: new_x,
+                    y: self.queue_cursor_location.y,
+                });
+            }
+            CursorMove::MoveTop => {
+                self.queue_command(MoveTo(self.queue_cursor_location.x as u16, 0))?;
+                self.set_queue_cursor_location(Location {
+                    x: self.queue_cursor_location.x,
+                    y: 0,
+                });
+            }
+            CursorMove::MoveBottom => {
+                let height = self.size()?.height;
+                self.queue_command(MoveTo(self.queue_cursor_location.x as u16, height as u16))?;
+                self.set_queue_cursor_location(Location {
+                    x: self.queue_cursor_location.x,
+                    y: height,
+                });
+            }
+            CursorMove::MoveLineEnd => {
+                let width = self.size()?.width;
+                self.queue_command(MoveTo(width as u16, self.queue_cursor_location.y as u16))?;
+                self.set_queue_cursor_location(Location {
+                    x: width,
+                    y: self.queue_cursor_location.y,
+                });
+            }
+            CursorMove::MoveLineStart => {
+                self.queue_command(MoveTo(0, self.queue_cursor_location.y as u16))?;
+                self.set_queue_cursor_location(Location {
+                    x: 0,
+                    y: self.queue_cursor_location.y,
+                });
+            }
+        }
+        Ok(())
     }
 
-    pub fn hide_cursor() -> io::Result<()> {
-        Self::queue_command(Hide)
+    fn set_queue_cursor_location(&mut self, location: Location) {
+        self.queue_cursor_location = location;
     }
 
-    pub fn show_cursor() -> io::Result<()> {
-        Self::queue_command(Show)
+    fn set_cursor_location(&mut self, location: Location) {
+        self.cursor_location = location;
     }
 
-    pub fn print(content: impl Display) -> io::Result<()> {
-        Self::queue_command(Print(content))
+    pub fn hide_cursor(&self) -> io::Result<()> {
+        self.queue_command(Hide)
     }
 
-    pub fn execute() -> io::Result<()> {
+    pub fn show_cursor(&self) -> io::Result<()> {
+        self.queue_command(Show)
+    }
+
+    pub fn print(&self, content: impl Display) -> io::Result<()> {
+        self.queue_command(Print(content))
+    }
+
+    pub fn execute(&mut self) -> io::Result<()> {
+        self.set_cursor_location(self.queue_cursor_location);
         stdout().flush()
     }
 
-    pub fn size() -> io::Result<Size> {
-        let (width, height) = size()?;
-        Ok(Size { width, height })
+    /// Returns the current size of this Terminal.
+    /// Edge Case for systems with `usize` < `u16`:
+    /// * A `Size` representing the terminal size. Any coordinate `z` truncated to `usize` if `usize` < `z` < `u16`
+    pub fn size(&self) -> io::Result<Size> {
+        let (width_u16, height_u16) = size()?;
+        #[allow(clippy::as_conversions)]
+        Ok(Size {
+            width: width_u16 as usize,
+            height: height_u16 as usize,
+        })
     }
 
-    fn queue_command<T: Command>(command: T) -> io::Result<()> {
+    fn queue_command(&self, command: impl Command) -> io::Result<()> {
         queue!(stdout(), command)?;
         Ok(())
     }
