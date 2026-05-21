@@ -1,6 +1,6 @@
 use crate::{
     buffer::Buffer,
-    terminal::{CursorMove, Size, Terminal},
+    terminal::{Direction, Size, Terminal},
 };
 use std::io;
 
@@ -13,9 +13,13 @@ pub struct View {
 }
 
 impl View {
+    pub fn load(&mut self, path: &str) -> io::Result<()> {
+        self.buffer.load(path)
+    }
+
     pub fn render(&mut self, terminal: &mut Terminal) -> io::Result<()> {
         for current_row in 0..terminal.size()?.height {
-            terminal.move_cursor_to(CursorMove::Position {
+            terminal.move_cursor_to(Direction::Position {
                 x: 0,
                 y: current_row,
             })?;
@@ -26,8 +30,9 @@ impl View {
             }
             terminal.print("~")?;
         }
-
-        self.draw_welcome_message(terminal)?;
+        if self.buffer.is_empty() {
+            self.draw_welcome_message(terminal)?;
+        }
         Ok(())
     }
 
@@ -36,7 +41,7 @@ impl View {
         let Size { width, height } = terminal.size()?;
         let offset_y = 2_usize;
         #[allow(clippy::integer_division)]
-        terminal.move_cursor_to(CursorMove::Position {
+        terminal.move_cursor_to(Direction::Position {
             x: (width.saturating_sub(welcome_message.len())) / 2,
             y: height.saturating_sub(offset_y),
         })?;

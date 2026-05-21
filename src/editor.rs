@@ -1,9 +1,10 @@
 use std::io;
+use std::path::Path;
 
 use crossterm::event::Event;
 use crossterm::event::{Event::Key, KeyCode, KeyEvent, KeyModifiers, read};
 
-use crate::terminal::{CursorMove, Terminal};
+use crate::terminal::{Direction, Terminal};
 use crate::view::View;
 
 #[derive(Default)]
@@ -15,6 +16,16 @@ pub struct Editor {
 
 impl Editor {
     pub fn run(&mut self) {
+        let args: Vec<String> = std::env::args().collect();
+        if let Some(first_arg) = args.get(1) {
+            let path = Path::new(first_arg);
+
+            if path.exists() && path.is_file() {
+                let path = path.to_str().unwrap();
+                self.view.load(path).unwrap();
+            }
+        }
+
         self.terminal.initialize().unwrap();
         let result = self.repl();
         self.terminal.terminate().unwrap();
@@ -43,28 +54,28 @@ impl Editor {
                     self.should_quit = true;
                 }
                 KeyCode::Up => {
-                    self.terminal.move_cursor_to(CursorMove::MoveUp(1))?;
+                    self.terminal.move_cursor_to(Direction::Up(1))?;
                 }
                 KeyCode::Down => {
-                    self.terminal.move_cursor_to(CursorMove::MoveDown(1))?;
+                    self.terminal.move_cursor_to(Direction::Down(1))?;
                 }
                 KeyCode::Left => {
-                    self.terminal.move_cursor_to(CursorMove::MoveLeft(1))?;
+                    self.terminal.move_cursor_to(Direction::Left(1))?;
                 }
                 KeyCode::Right => {
-                    self.terminal.move_cursor_to(CursorMove::MoveRight(1))?;
+                    self.terminal.move_cursor_to(Direction::Right(1))?;
                 }
                 KeyCode::Home => {
-                    self.terminal.move_cursor_to(CursorMove::MoveLineStart)?;
+                    self.terminal.move_cursor_to(Direction::LineStart)?;
                 }
                 KeyCode::End => {
-                    self.terminal.move_cursor_to(CursorMove::MoveLineEnd)?;
+                    self.terminal.move_cursor_to(Direction::LineEnd)?;
                 }
                 KeyCode::PageUp => {
-                    self.terminal.move_cursor_to(CursorMove::MoveTop)?;
+                    self.terminal.move_cursor_to(Direction::Top)?;
                 }
                 KeyCode::PageDown => {
-                    self.terminal.move_cursor_to(CursorMove::MoveBottom)?;
+                    self.terminal.move_cursor_to(Direction::Bottom)?;
                 }
                 _ => (),
             }
@@ -79,8 +90,8 @@ impl Editor {
             self.terminal.clear_screen()?;
             self.terminal.print("Goodbye.\r\n")?;
         } else {
-            self.render()?;
-            self.terminal.move_cursor_to(CursorMove::Position {
+            self.view.render(&mut self.terminal)?;
+            self.terminal.move_cursor_to(Direction::Position {
                 x: self.terminal.cursor_location.x,
                 y: self.terminal.cursor_location.y,
             })?;
@@ -88,9 +99,5 @@ impl Editor {
         self.terminal.show_cursor()?;
         self.terminal.execute()?;
         Ok(())
-    }
-
-    fn render(&mut self) -> io::Result<()> {
-        self.view.render(&mut self.terminal)
     }
 }

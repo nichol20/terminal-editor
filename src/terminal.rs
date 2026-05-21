@@ -31,16 +31,16 @@ pub struct Size {
 }
 
 #[derive(Copy, Clone)]
-pub enum CursorMove {
+pub enum Direction {
     Position { x: usize, y: usize },
-    MoveUp(usize),
-    MoveDown(usize),
-    MoveLeft(usize),
-    MoveRight(usize),
-    MoveTop,
-    MoveBottom,
-    MoveLineEnd,
-    MoveLineStart,
+    Up(usize),
+    Down(usize),
+    Left(usize),
+    Right(usize),
+    Top,
+    Bottom,
+    LineEnd,
+    LineStart,
 }
 
 #[allow(clippy::unused_self)]
@@ -68,13 +68,13 @@ impl Terminal {
     /// # Arguments
     /// * `Position` - the  `Position`to move the cursor to. Will be truncated to `u16::MAX` if bigger.
     #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
-    pub fn move_cursor_to(&mut self, cursor_move: CursorMove) -> io::Result<()> {
+    pub fn move_cursor_to(&mut self, cursor_move: Direction) -> io::Result<()> {
         match cursor_move {
-            CursorMove::Position { x, y } => {
+            Direction::Position { x, y } => {
                 self.queue_command(MoveTo(x as u16, y as u16))?;
                 self.set_queue_cursor_location(Location { x, y });
             }
-            CursorMove::MoveUp(n) => {
+            Direction::Up(n) => {
                 let new_y = max(0, self.queue_cursor_location.y.saturating_sub(n));
                 self.queue_command(MoveTo(self.queue_cursor_location.x as u16, new_y as u16))?;
                 self.set_queue_cursor_location(Location {
@@ -82,7 +82,7 @@ impl Terminal {
                     y: new_y,
                 });
             }
-            CursorMove::MoveDown(n) => {
+            Direction::Down(n) => {
                 let new_y = min(
                     self.size()?.height,
                     self.queue_cursor_location.y.saturating_add(n),
@@ -93,7 +93,7 @@ impl Terminal {
                     y: new_y,
                 });
             }
-            CursorMove::MoveLeft(n) => {
+            Direction::Left(n) => {
                 let new_x = max(0, self.queue_cursor_location.x.saturating_sub(n));
                 self.queue_command(MoveTo(new_x as u16, self.queue_cursor_location.y as u16))?;
                 self.set_queue_cursor_location(Location {
@@ -101,7 +101,7 @@ impl Terminal {
                     y: self.queue_cursor_location.y,
                 });
             }
-            CursorMove::MoveRight(n) => {
+            Direction::Right(n) => {
                 let new_x = min(
                     self.size()?.width,
                     self.queue_cursor_location.x.saturating_add(n),
@@ -112,14 +112,14 @@ impl Terminal {
                     y: self.queue_cursor_location.y,
                 });
             }
-            CursorMove::MoveTop => {
+            Direction::Top => {
                 self.queue_command(MoveTo(self.queue_cursor_location.x as u16, 0))?;
                 self.set_queue_cursor_location(Location {
                     x: self.queue_cursor_location.x,
                     y: 0,
                 });
             }
-            CursorMove::MoveBottom => {
+            Direction::Bottom => {
                 let height = self.size()?.height;
                 self.queue_command(MoveTo(self.queue_cursor_location.x as u16, height as u16))?;
                 self.set_queue_cursor_location(Location {
@@ -127,7 +127,7 @@ impl Terminal {
                     y: height,
                 });
             }
-            CursorMove::MoveLineEnd => {
+            Direction::LineEnd => {
                 let width = self.size()?.width;
                 self.queue_command(MoveTo(width as u16, self.queue_cursor_location.y as u16))?;
                 self.set_queue_cursor_location(Location {
@@ -135,7 +135,7 @@ impl Terminal {
                     y: self.queue_cursor_location.y,
                 });
             }
-            CursorMove::MoveLineStart => {
+            Direction::LineStart => {
                 self.queue_command(MoveTo(0, self.queue_cursor_location.y as u16))?;
                 self.set_queue_cursor_location(Location {
                     x: 0,
