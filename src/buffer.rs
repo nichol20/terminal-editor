@@ -15,6 +15,6 @@ impl Buffer {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.lines.len() > 0
+        self.lines.len() == 0
     }
 }
