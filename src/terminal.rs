@@ -56,6 +56,7 @@ impl Terminal {
     }
 
     pub fn terminate(&mut self) -> io::Result<()> {
+        let _ = self.clear_screen();
         self.leave_alternate_screen()?;
         self.show_cursor()?;
         self.execute()?;

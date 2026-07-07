@@ -115,16 +115,13 @@ impl Editor {
 
     fn refresh_screen(&mut self) {
         let _ = self.terminal.hide_cursor();
-        if self.should_quit {
-            let _ = self.terminal.clear_screen();
-            let _ = self.terminal.print("Goodbye.\r\n");
-        } else {
-            self.view.render(&mut self.terminal);
-            self.terminal.move_cursor_to(Direction::Position {
-                x: self.terminal.cursor_location.x,
-                y: self.terminal.cursor_location.y,
-            });
-        }
+        
+        self.view.render(&mut self.terminal);
+        self.terminal.move_cursor_to(Direction::Position {
+            x: self.terminal.cursor_location.x,
+            y: self.terminal.cursor_location.y,
+        });
+        
         let _ = self.terminal.show_cursor();
         let _ = self.terminal.execute();
     }
@@ -135,5 +132,6 @@ impl Drop for Editor {
         if let Err(err) = self.terminal.terminate() {
             dbg!("Error dropping terminal: {:?}", err);
         }
+        let _ = self.terminal.print("Goodbye.\r\n");
     }
 }
