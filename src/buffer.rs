@@ -7,10 +7,7 @@ pub struct Buffer {
 
 impl Buffer {
     pub fn load(&mut self, path: &str) -> io::Result<()> {
-        let contents = read_to_string(path)?;
-        for line in contents.lines() {
-            self.lines.push(String::from(line));
-        }
+        self.lines = read_to_string(path)?.lines().map(String::from).collect();
         Ok(())
     }
 

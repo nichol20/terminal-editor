@@ -13,5 +13,5 @@ mod view;
 use crate::editor::Editor;
 
 fn main() {
-    Editor::default().run();
+    Editor::new().run();
 }

@@ -7,9 +7,12 @@ use std::{
 use crossterm::{
     Command,
     cursor::{Hide, MoveTo, Show},
-    queue,
+    execute, queue,
     style::Print,
-    terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode, size},
+    terminal::{
+        Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
+        enable_raw_mode, size,
+    },
 };
 
 #[derive(Copy, Clone, Default)]
@@ -24,7 +27,7 @@ pub struct Terminal {
     pub queue_cursor_location: Location,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct Size {
     pub width: usize,
     pub height: usize,
@@ -43,17 +46,30 @@ pub enum Direction {
     LineStart,
 }
 
-#[allow(clippy::unused_self)]
 impl Terminal {
     pub fn initialize(&mut self) -> io::Result<()> {
+        self.enter_alternate_screen()?;
         enable_raw_mode()?;
         self.clear_screen()?;
         self.execute()?;
         Ok(())
     }
 
-    pub fn terminate(&self) -> io::Result<()> {
-        disable_raw_mode()
+    pub fn terminate(&mut self) -> io::Result<()> {
+        self.leave_alternate_screen()?;
+        self.show_cursor()?;
+        self.execute()?;
+        disable_raw_mode()?;
+        Ok(())
+    }
+
+    pub fn enter_alternate_screen(&self) -> io::Result<()> {
+        execute!(io::stdout(), EnterAlternateScreen)
+    }
+
+    #[allow(dead_code)]
+    pub fn leave_alternate_screen(&self) -> io::Result<()> {
+        execute!(io::stdout(), LeaveAlternateScreen)
     }
 
     pub fn clear_screen(&self) -> io::Result<()> {
@@ -68,82 +84,52 @@ impl Terminal {
     /// # Arguments
     /// * `Position` - the  `Position`to move the cursor to. Will be truncated to `u16::MAX` if bigger.
     #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
-    pub fn move_cursor_to(&mut self, cursor_move: Direction) -> io::Result<()> {
-        match cursor_move {
+    pub fn move_cursor_to(&mut self, direction: Direction) {
+        let new_x;
+        let new_y;
+        let Size { width, height } = self.size().unwrap_or_default();
+
+        match direction {
             Direction::Position { x, y } => {
-                self.queue_command(MoveTo(x as u16, y as u16))?;
-                self.set_queue_cursor_location(Location { x, y });
+                new_x = x;
+                new_y = y;
             }
             Direction::Up(n) => {
-                let new_y = max(0, self.queue_cursor_location.y.saturating_sub(n));
-                self.queue_command(MoveTo(self.queue_cursor_location.x as u16, new_y as u16))?;
-                self.set_queue_cursor_location(Location {
-                    x: self.queue_cursor_location.x,
-                    y: new_y,
-                });
+                new_x = self.queue_cursor_location.x;
+                new_y = max(0, self.queue_cursor_location.y.saturating_sub(n));
             }
             Direction::Down(n) => {
-                let new_y = min(
-                    self.size()?.height,
-                    self.queue_cursor_location.y.saturating_add(n),
-                );
-                self.queue_command(MoveTo(self.queue_cursor_location.x as u16, new_y as u16))?;
-                self.set_queue_cursor_location(Location {
-                    x: self.queue_cursor_location.x,
-                    y: new_y,
-                });
+                new_x = self.queue_cursor_location.x;
+                new_y = min(height, self.queue_cursor_location.y.saturating_add(n));
             }
             Direction::Left(n) => {
-                let new_x = max(0, self.queue_cursor_location.x.saturating_sub(n));
-                self.queue_command(MoveTo(new_x as u16, self.queue_cursor_location.y as u16))?;
-                self.set_queue_cursor_location(Location {
-                    x: new_x,
-                    y: self.queue_cursor_location.y,
-                });
+                new_x = max(0, self.queue_cursor_location.x.saturating_sub(n));
+                new_y = self.queue_cursor_location.y;
             }
             Direction::Right(n) => {
-                let new_x = min(
-                    self.size()?.width,
-                    self.queue_cursor_location.x.saturating_add(n),
-                );
-                self.queue_command(MoveTo(new_x as u16, self.queue_cursor_location.y as u16))?;
-                self.set_queue_cursor_location(Location {
-                    x: new_x,
-                    y: self.queue_cursor_location.y,
-                });
+                new_x = min(width, self.queue_cursor_location.x.saturating_add(n));
+                new_y = self.queue_cursor_location.y;
             }
             Direction::Top => {
-                self.queue_command(MoveTo(self.queue_cursor_location.x as u16, 0))?;
-                self.set_queue_cursor_location(Location {
-                    x: self.queue_cursor_location.x,
-                    y: 0,
-                });
+                new_x = self.queue_cursor_location.x;
+                new_y = 0;
             }
             Direction::Bottom => {
-                let height = self.size()?.height;
-                self.queue_command(MoveTo(self.queue_cursor_location.x as u16, height as u16))?;
-                self.set_queue_cursor_location(Location {
-                    x: self.queue_cursor_location.x,
-                    y: height,
-                });
+                new_x = self.queue_cursor_location.x;
+                new_y = height;
             }
             Direction::LineEnd => {
-                let width = self.size()?.width;
-                self.queue_command(MoveTo(width as u16, self.queue_cursor_location.y as u16))?;
-                self.set_queue_cursor_location(Location {
-                    x: width,
-                    y: self.queue_cursor_location.y,
-                });
+                new_x = width;
+                new_y = self.queue_cursor_location.y;
             }
             Direction::LineStart => {
-                self.queue_command(MoveTo(0, self.queue_cursor_location.y as u16))?;
-                self.set_queue_cursor_location(Location {
-                    x: 0,
-                    y: self.queue_cursor_location.y,
-                });
+                new_x = 0;
+                new_y = self.queue_cursor_location.y;
             }
         }
-        Ok(())
+
+        let _ = self.queue_command(MoveTo(new_x as u16, new_y as u16));
+        self.set_queue_cursor_location(Location { x: new_x, y: new_y });
     }
 
     fn set_queue_cursor_location(&mut self, location: Location) {
