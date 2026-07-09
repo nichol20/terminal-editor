@@ -4,7 +4,10 @@ use std::path::Path;
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, read};
 
-use crate::terminal::{Direction, Terminal};
+use crate::terminal::Position;
+use crate::terminal::Terminal;
+use crate::view::Action;
+use crate::view::Direction;
 use crate::view::View;
 
 #[derive(Default)]
@@ -79,30 +82,14 @@ impl Editor {
                 KeyCode::Char('q') if *modifiers == KeyModifiers::CONTROL => {
                     self.should_quit = true;
                 }
-                KeyCode::Up => {
-                    self.terminal.move_cursor_to(Direction::Up(1));
-                }
-                KeyCode::Down => {
-                    self.terminal.move_cursor_to(Direction::Down(1));
-                }
-                KeyCode::Left => {
-                    self.terminal.move_cursor_to(Direction::Left(1));
-                }
-                KeyCode::Right => {
-                    self.terminal.move_cursor_to(Direction::Right(1));
-                }
-                KeyCode::Home => {
-                    self.terminal.move_cursor_to(Direction::LineStart);
-                }
-                KeyCode::End => {
-                    self.terminal.move_cursor_to(Direction::LineEnd);
-                }
-                KeyCode::PageUp => {
-                    self.terminal.move_cursor_to(Direction::Top);
-                }
-                KeyCode::PageDown => {
-                    self.terminal.move_cursor_to(Direction::Bottom);
-                }
+                KeyCode::Up => self.view.handle_action(Action::Move(Direction::Up(1))),
+                KeyCode::Down => self.view.handle_action(Action::Move(Direction::Down(1))),
+                KeyCode::Left => self.view.handle_action(Action::Move(Direction::Left(1))),
+                KeyCode::Right => self.view.handle_action(Action::Move(Direction::Right(1))),
+                KeyCode::Home => self.view.handle_action(Action::Move(Direction::LineStart)),
+                KeyCode::End => self.view.handle_action(Action::Move(Direction::LineEnd)),
+                KeyCode::PageUp => self.view.handle_action(Action::Move(Direction::Top)),
+                KeyCode::PageDown => self.view.handle_action(Action::Move(Direction::Bottom)),
                 _ => (),
             }
         }
@@ -115,13 +102,13 @@ impl Editor {
 
     fn refresh_screen(&mut self) {
         let _ = self.terminal.hide_cursor();
-        
+
         self.view.render(&mut self.terminal);
-        self.terminal.move_cursor_to(Direction::Position {
-            x: self.terminal.cursor_location.x,
-            y: self.terminal.cursor_location.y,
+        self.terminal.move_cursor_to(Position {
+            x: self.view.cursor_location.x,
+            y: self.view.cursor_location.y,
         });
-        
+
         let _ = self.terminal.show_cursor();
         let _ = self.terminal.execute();
     }
