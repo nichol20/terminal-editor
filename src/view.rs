@@ -123,7 +123,7 @@ impl View {
                 Direction::Down(n) => {
                     self.cursor_location.y = self.cursor_location.y.saturating_add(n);
                     if self.cursor_location.y + 1 > self.scroll_offset.y + terminal_height {
-                        self.scroll_offset.y += n; // TODO:: handle `n` input instead of just increasing it by 1
+                        self.scroll_offset.y += n;
                         self.set_redraw_flag(true);
                     }
                 }
