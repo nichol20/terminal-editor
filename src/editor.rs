@@ -1,4 +1,4 @@
-use std::io;
+use std::io; // dosiajdo ajsodj osaijd iajsiodjsaio djsioaj doiajs odjaio sjdio ajsiodj ioasj dasjdoiiasjoidjasoij iodjasio jdioasj oidjasio djioasj diasjdiojasoi djaiosj oijdaiosj ajois
 use std::panic;
 use std::path::Path;
 
@@ -25,6 +25,7 @@ impl Editor {
             view: View::default(),
         };
 
+        // dosiajdo ajsodj osaijd iajsiodjsaio djsioaj doiajs odjaio sjdio ajsiodj ioasj dasjdoiiasjoidjasoij iodjasio jdioasj oidjasio djioasj diasjdiojasoi djaiosj oijdaiosj ajois
         // Set up a panic hook to ensure the terminal is properly terminated on panic
         let current_hook = panic::take_hook();
         panic::set_hook(Box::new(move |panic_info| {
@@ -83,8 +84,8 @@ impl Editor {
                 KeyCode::Char('q') if *modifiers == KeyModifiers::CONTROL => {
                     self.should_quit = true;
                 }
-                KeyCode::Up => direction = Direction::Up(5),
-                KeyCode::Down => direction = Direction::Down(5),
+                KeyCode::Up => direction = Direction::Up(1),
+                KeyCode::Down => direction = Direction::Down(1),
                 KeyCode::Left => direction = Direction::Left(1),
                 KeyCode::Right => direction = Direction::Right(1),
                 KeyCode::Home => direction = Direction::LineStart,
@@ -108,7 +109,7 @@ impl Editor {
 
         self.view.render(&mut self.terminal);
         self.terminal.move_cursor_to(Position {
-            x: self.view.cursor_location.x,
+            x: self.view.cursor_location.x - self.view.scroll_offset.x,
             y: self.view.cursor_location.y - self.view.scroll_offset.y,
         });
 
