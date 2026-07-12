@@ -1,4 +1,4 @@
-use std::io; // dosiajdo ajsodj osaijd iajsiodjsaio djsioaj doiajs odjaio sjdio ajsiodj ioasj dasjdoiiasjoidjasoij iodjasio jdioasj oidjasio djioasj diasjdiojasoi djaiosj oijdaiosj ajois
+use std::io;
 use std::panic;
 use std::path::Path;
 
@@ -25,7 +25,6 @@ impl Editor {
             view: View::default(),
         };
 
-        // dosiajdo ajsodj osaijd iajsiodjsaio djsioaj doiajs odjaio sjdio ajsiodj ioasj dasjdoiiasjoidjasoij iodjasio jdioasj oidjasio djioasj diasjdiojasoi djaiosj oijdaiosj ajois
         // Set up a panic hook to ensure the terminal is properly terminated on panic
         let current_hook = panic::take_hook();
         panic::set_hook(Box::new(move |panic_info| {
