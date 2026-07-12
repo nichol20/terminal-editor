@@ -18,16 +18,23 @@ pub enum Direction {
     Bottom,
     LineEnd,
     LineStart,
+    None,
 }
 
 pub enum Action {
     Move(Direction),
 }
 
+pub struct ScrollOffset {
+    pub x: usize,
+    pub y: usize,
+}
+
 pub struct View {
     buffer: Buffer,
     needs_redraw: bool,
     pub cursor_location: Location,
+    pub scroll_offset: ScrollOffset,
 }
 
 impl Default for View {
@@ -36,6 +43,7 @@ impl Default for View {
             buffer: Buffer::default(),
             needs_redraw: true,
             cursor_location: Location { x: 0, y: 0 },
+            scroll_offset: ScrollOffset { x: 0, y: 0 },
         }
     }
 }
@@ -70,7 +78,8 @@ impl View {
             let clear_line_result = terminal.clear_line();
             debug_assert!(clear_line_result.is_ok(), "Failed to clear line");
 
-            if let Some(line) = self.buffer.lines.get(current_row) {
+            let current_line_idx = current_row + self.scroll_offset.y;
+            if let Some(line) = self.buffer.lines.get(current_line_idx) {
                 // Truncate the line to fit within the terminal width
                 let truncated_line = line.get(0..width).unwrap_or(line);
                 let print_line_result = terminal.print(truncated_line);
@@ -92,7 +101,12 @@ impl View {
         self.set_redraw_flag(false);
     }
 
-    pub fn handle_action(&mut self, action: Action) -> () {
+    pub fn handle_action(&mut self, terminal: &mut Terminal, action: Action) -> () {
+        let Size {
+            width: _,
+            height: terminal_height,
+        } = terminal.size().unwrap_or_default();
+
         match action {
             Action::Move(direction) => match direction {
                 Direction::Position { x, y } => {
@@ -100,17 +114,21 @@ impl View {
                     self.cursor_location.y = y;
                 }
                 Direction::Up(n) => {
-                    self.cursor_location.y = self.cursor_location.y.saturating_sub(n).max(0);
+                    self.cursor_location.y = self.cursor_location.y.saturating_sub(n);
+                    if self.scroll_offset.y > self.cursor_location.y {
+                        self.scroll_offset.y = self.scroll_offset.y.saturating_sub(n);
+                        self.set_redraw_flag(true);
+                    }
                 }
                 Direction::Down(n) => {
-                    self.cursor_location.y = self
-                        .cursor_location
-                        .y
-                        .saturating_add(n)
-                        .min(self.buffer.lines.len());
+                    self.cursor_location.y = self.cursor_location.y.saturating_add(n);
+                    if self.cursor_location.y + 1 > self.scroll_offset.y + terminal_height {
+                        self.scroll_offset.y += n; // TODO:: handle `n` input instead of just increasing it by 1
+                        self.set_redraw_flag(true);
+                    }
                 }
                 Direction::Left(n) => {
-                    self.cursor_location.x = self.cursor_location.x.saturating_sub(n).max(0);
+                    self.cursor_location.x = self.cursor_location.x.saturating_sub(n);
                 }
                 Direction::Right(n) => {
                     self.cursor_location.x = self.cursor_location.x.saturating_add(n);
@@ -119,7 +137,7 @@ impl View {
                     self.cursor_location.y = 0;
                 }
                 Direction::Bottom => {
-                    self.cursor_location.y = self.buffer.lines.len();
+                    self.cursor_location.y = terminal_height;
                 }
                 Direction::LineEnd => {
                     self.cursor_location.x = self.current_line().len();
@@ -127,15 +145,25 @@ impl View {
                 Direction::LineStart => {
                     self.cursor_location.x = 0;
                 }
+                _ => (),
             },
         }
 
-        self.clamp_cursor();
+        self.clamp_cursor(terminal_height);
     }
 
-    pub fn clamp_cursor(&mut self) {
+    pub fn clamp_cursor(&mut self, terminal_height: usize) {
         let cur_line_len = self.current_line().len();
+        let buffer_lines_len = self.buffer.lines.len();
         self.cursor_location.x = self.cursor_location.x.min(cur_line_len);
+        self.cursor_location.y = self
+            .cursor_location
+            .y
+            .min(buffer_lines_len.saturating_sub(1));
+        self.scroll_offset.y = self
+            .scroll_offset
+            .y
+            .min(buffer_lines_len.saturating_sub(terminal_height));
     }
 
     pub fn current_line(&self) -> &str {

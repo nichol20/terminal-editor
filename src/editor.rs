@@ -78,20 +78,23 @@ impl Editor {
             code, modifiers, ..
         }) = event
         {
+            let mut direction: Direction = Direction::None;
             match code {
                 KeyCode::Char('q') if *modifiers == KeyModifiers::CONTROL => {
                     self.should_quit = true;
                 }
-                KeyCode::Up => self.view.handle_action(Action::Move(Direction::Up(1))),
-                KeyCode::Down => self.view.handle_action(Action::Move(Direction::Down(1))),
-                KeyCode::Left => self.view.handle_action(Action::Move(Direction::Left(1))),
-                KeyCode::Right => self.view.handle_action(Action::Move(Direction::Right(1))),
-                KeyCode::Home => self.view.handle_action(Action::Move(Direction::LineStart)),
-                KeyCode::End => self.view.handle_action(Action::Move(Direction::LineEnd)),
-                KeyCode::PageUp => self.view.handle_action(Action::Move(Direction::Top)),
-                KeyCode::PageDown => self.view.handle_action(Action::Move(Direction::Bottom)),
+                KeyCode::Up => direction = Direction::Up(5),
+                KeyCode::Down => direction = Direction::Down(5),
+                KeyCode::Left => direction = Direction::Left(1),
+                KeyCode::Right => direction = Direction::Right(1),
+                KeyCode::Home => direction = Direction::LineStart,
+                KeyCode::End => direction = Direction::LineEnd,
+                KeyCode::PageUp => direction = Direction::Top,
+                KeyCode::PageDown => direction = Direction::Bottom,
                 _ => (),
             }
+            self.view
+                .handle_action(&mut self.terminal, Action::Move(direction));
         }
         if let Event::Resize(_, _) = event {
             self.view.set_redraw_flag(true);
@@ -106,7 +109,7 @@ impl Editor {
         self.view.render(&mut self.terminal);
         self.terminal.move_cursor_to(Position {
             x: self.view.cursor_location.x,
-            y: self.view.cursor_location.y,
+            y: self.view.cursor_location.y - self.view.scroll_offset.y,
         });
 
         let _ = self.terminal.show_cursor();
