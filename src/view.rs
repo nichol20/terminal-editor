@@ -23,6 +23,7 @@ pub enum Direction {
 
 pub enum Action {
     Move(Direction),
+    Resize,
 }
 
 pub struct ScrollOffset {
@@ -137,19 +138,26 @@ impl View {
                     }
                 }
                 Direction::Top => {
+                    self.scroll_offset.y = 0;
                     self.cursor_location.y = 0;
                 }
                 Direction::Bottom => {
-                    self.cursor_location.y = terminal_height;
+                    let buf_lines_len = self.buffer.lines.len();
+                    self.cursor_location.y = buf_lines_len;
+                    self.scroll_offset.y = buf_lines_len.saturating_sub(terminal_height);
                 }
                 Direction::LineEnd => {
-                    self.cursor_location.x = self.current_line().len();
+                    let cur_line_len = self.current_line().len();
+                    self.cursor_location.x = cur_line_len;
+                    self.scroll_offset.x = cur_line_len.saturating_sub(terminal_width);
                 }
                 Direction::LineStart => {
                     self.cursor_location.x = 0;
+                    self.scroll_offset.x = 0;
                 }
                 _ => (),
             },
+            Action::Resize => (),
         }
 
         self.clamp_cursor(terminal_width, terminal_height);

@@ -97,7 +97,7 @@ impl Editor {
                 .handle_action(&mut self.terminal, Action::Move(direction));
         }
         if let Event::Resize(_, _) = event {
-            self.view.set_redraw_flag(true);
+            self.view.handle_action(&mut self.terminal, Action::Resize);
         }
         self.terminal.execute()?;
         Ok(())
