@@ -78,26 +78,7 @@ impl View {
             .unwrap_or("")
     }
 
-    pub fn clamp_cursor(&mut self, terminal_width: usize, terminal_height: usize) {
-        let cur_line_len = self.current_line().len();
-        let buffer_lines_len = self.buffer.lines.len();
-        // allow place the cursor after the last character on the line (don't subtract 1)
-        self.cursor_location.x = self.cursor_location.x.min(cur_line_len);
-        // allow place the cursor below the last line (don't subtract 1)
-        self.cursor_location.y = self.cursor_location.y.min(buffer_lines_len);
-        self.scroll_offset.y = self.scroll_offset.y.min(
-            buffer_lines_len
-                .saturating_sub(terminal_height)
-                .saturating_add(1), // allow to show 1 empty line below the last
-        );
-        self.scroll_offset.x = self.scroll_offset.x.min(
-            cur_line_len
-                .saturating_sub(terminal_width)
-                .saturating_add(1), // allow to show 1 char after the last
-        );
-    }
-
-    pub fn draw_welcome_message(&mut self, terminal: &mut Terminal) -> io::Result<()> {
+    fn draw_welcome_message(&mut self, terminal: &mut Terminal) -> io::Result<()> {
         let mut welcome_message = format!("{NAME} editor -- version {VERSION}");
         let Size { width, height } = terminal.size()?;
         let offset_y = 2_usize;
@@ -154,11 +135,32 @@ impl View {
         self.set_redraw_flag(false);
     }
 
+    fn clamp_cursor(&mut self, terminal_width: usize, terminal_height: usize) {
+        let cur_line_len = self.current_line().len();
+        let buffer_lines_len = self.buffer.lines.len();
+        // allow place the cursor after the last character on the line (don't subtract 1)
+        self.cursor_location.x = self.cursor_location.x.min(cur_line_len);
+        // allow place the cursor below the last line (don't subtract 1)
+        self.cursor_location.y = self.cursor_location.y.min(buffer_lines_len);
+        self.scroll_offset.y = self.scroll_offset.y.min(
+            buffer_lines_len
+                .saturating_sub(terminal_height)
+                .saturating_add(1), // allow to show 1 empty line below the last
+        );
+        self.scroll_offset.x = self.scroll_offset.x.min(
+            cur_line_len
+                .saturating_sub(terminal_width)
+                .saturating_add(1), // allow to show 1 char after the last
+        );
+    }
+
     pub fn handle_action(&mut self, terminal: &mut Terminal, action: Action) -> () {
         let Size {
             width: terminal_width,
             height: terminal_height,
         } = terminal.size().unwrap_or_default();
+        let cur_line_len = self.current_line().len();
+        let buf_lines_len = self.buffer.lines.len();
 
         match action {
             Action::Move(direction) => match direction {
@@ -179,13 +181,29 @@ impl View {
                     }
                 }
                 Direction::Left(n) => {
+                    if self.cursor_location.x == 0 && self.cursor_location.y > 0 {
+                        self.cursor_location.y -= 1;
+                        self.handle_action(terminal, Action::Move(Direction::LineEnd));
+                        return;
+                    }
+
                     self.cursor_location.x = self.cursor_location.x.saturating_sub(n);
+
                     if self.scroll_offset.x > self.cursor_location.x {
                         self.scroll_offset.x = self.scroll_offset.x.saturating_sub(n);
                     }
                 }
                 Direction::Right(n) => {
                     self.cursor_location.x = self.cursor_location.x.saturating_add(n);
+
+                    if self.cursor_location.x > cur_line_len
+                        && self.cursor_location.y < buf_lines_len
+                    {
+                        self.cursor_location.y += 1;
+                        self.handle_action(terminal, Action::Move(Direction::LineStart));
+                        return;
+                    }
+
                     if self.cursor_location.x + 1 > self.scroll_offset.x + terminal_width {
                         self.scroll_offset.x += n;
                     }
@@ -195,7 +213,6 @@ impl View {
                     self.cursor_location.y = 0;
                 }
                 Direction::Bottom => {
-                    let buf_lines_len = self.buffer.lines.len();
                     self.cursor_location.y = buf_lines_len;
                     self.scroll_offset.y = buf_lines_len.saturating_sub(terminal_height);
                 }
@@ -208,7 +225,6 @@ impl View {
                     return;
                 }
                 Direction::LineEnd => {
-                    let cur_line_len = self.current_line().len();
                     self.cursor_location.x = cur_line_len;
                     self.scroll_offset.x = cur_line_len.saturating_sub(terminal_width);
                 }
