@@ -4,7 +4,6 @@ use std::path::Path;
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, read};
 
-use crate::terminal::Position;
 use crate::terminal::Terminal;
 use crate::view::Action;
 use crate::view::Direction;
@@ -89,8 +88,8 @@ impl Editor {
                 KeyCode::Right => direction = Direction::Right(1),
                 KeyCode::Home => direction = Direction::LineStart,
                 KeyCode::End => direction = Direction::LineEnd,
-                KeyCode::PageUp => direction = Direction::Top,
-                KeyCode::PageDown => direction = Direction::Bottom,
+                KeyCode::PageUp => direction = Direction::PageUp,
+                KeyCode::PageDown => direction = Direction::PageDown,
                 _ => (),
             }
             self.view

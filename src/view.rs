@@ -8,6 +8,7 @@ use crate::{
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[allow(dead_code)]
 pub enum Direction {
     Position { x: usize, y: usize },
     Up(usize),
@@ -16,6 +17,8 @@ pub enum Direction {
     Right(usize),
     Top,
     Bottom,
+    PageUp,
+    PageDown,
     LineEnd,
     LineStart,
     None,
@@ -78,19 +81,20 @@ impl View {
     pub fn clamp_cursor(&mut self, terminal_width: usize, terminal_height: usize) {
         let cur_line_len = self.current_line().len();
         let buffer_lines_len = self.buffer.lines.len();
-        self.cursor_location.x = self.cursor_location.x.min(cur_line_len.saturating_sub(1));
-        self.cursor_location.y = self
-            .cursor_location
-            .y
-            .min(buffer_lines_len.saturating_sub(1));
-        self.scroll_offset.y = self
-            .scroll_offset
-            .y
-            .min(buffer_lines_len.saturating_sub(terminal_height));
-        self.scroll_offset.x = self
-            .scroll_offset
-            .x
-            .min(cur_line_len.saturating_sub(terminal_width));
+        // allow place the cursor after the last character on the line (don't subtract 1)
+        self.cursor_location.x = self.cursor_location.x.min(cur_line_len);
+        // allow place the cursor below the last line (don't subtract 1)
+        self.cursor_location.y = self.cursor_location.y.min(buffer_lines_len);
+        self.scroll_offset.y = self.scroll_offset.y.min(
+            buffer_lines_len
+                .saturating_sub(terminal_height)
+                .saturating_add(1), // allow to show 1 empty line below the last
+        );
+        self.scroll_offset.x = self.scroll_offset.x.min(
+            cur_line_len
+                .saturating_sub(terminal_width)
+                .saturating_add(1), // allow to show 1 char after the last
+        );
     }
 
     pub fn draw_welcome_message(&mut self, terminal: &mut Terminal) -> io::Result<()> {
@@ -194,6 +198,14 @@ impl View {
                     let buf_lines_len = self.buffer.lines.len();
                     self.cursor_location.y = buf_lines_len;
                     self.scroll_offset.y = buf_lines_len.saturating_sub(terminal_height);
+                }
+                Direction::PageUp => {
+                    self.handle_action(terminal, Action::Move(Direction::Up(terminal_height)));
+                    return;
+                }
+                Direction::PageDown => {
+                    self.handle_action(terminal, Action::Move(Direction::Down(terminal_height)));
+                    return;
                 }
                 Direction::LineEnd => {
                     let cur_line_len = self.current_line().len();
