@@ -60,6 +60,55 @@ impl View {
         self.needs_redraw = value;
     }
 
+    pub fn get_position(&self) -> Position {
+        Position {
+            x: self.cursor_location.x - self.scroll_offset.x,
+            y: self.cursor_location.y - self.scroll_offset.y,
+        }
+    }
+
+    pub fn current_line(&self) -> &str {
+        self.buffer
+            .lines
+            .get(self.cursor_location.y)
+            .map(String::as_str)
+            .unwrap_or("")
+    }
+
+    pub fn clamp_cursor(&mut self, terminal_width: usize, terminal_height: usize) {
+        let cur_line_len = self.current_line().len();
+        let buffer_lines_len = self.buffer.lines.len();
+        self.cursor_location.x = self.cursor_location.x.min(cur_line_len.saturating_sub(1));
+        self.cursor_location.y = self
+            .cursor_location
+            .y
+            .min(buffer_lines_len.saturating_sub(1));
+        self.scroll_offset.y = self
+            .scroll_offset
+            .y
+            .min(buffer_lines_len.saturating_sub(terminal_height));
+        self.scroll_offset.x = self
+            .scroll_offset
+            .x
+            .min(cur_line_len.saturating_sub(terminal_width));
+    }
+
+    pub fn draw_welcome_message(&mut self, terminal: &mut Terminal) -> io::Result<()> {
+        let mut welcome_message = format!("{NAME} editor -- version {VERSION}");
+        let Size { width, height } = terminal.size()?;
+        let offset_y = 2_usize;
+
+        #[allow(clippy::integer_division)]
+        terminal.move_cursor_to(Position {
+            x: (width.saturating_sub(welcome_message.len())) / 2,
+            y: height.saturating_sub(offset_y),
+        });
+        // subtract 1 from width to let a space for tilde
+        welcome_message.truncate(width.saturating_sub(1_usize));
+        terminal.print(welcome_message)?;
+        Ok(())
+    }
+
     pub fn render(&mut self, terminal: &mut Terminal) {
         if !self.needs_redraw {
             return;
@@ -79,7 +128,7 @@ impl View {
             let clear_line_result = terminal.clear_line();
             debug_assert!(clear_line_result.is_ok(), "Failed to clear line");
 
-            let current_line_idx = current_row + self.scroll_offset.y;
+            let current_line_idx = current_row.saturating_add(self.scroll_offset.y);
             if let Some(line) = self.buffer.lines.get(current_line_idx) {
                 let truncated_line = line.get(self.scroll_offset.x..).unwrap_or("");
                 let print_line_result = terminal.print(truncated_line);
@@ -162,47 +211,5 @@ impl View {
 
         self.clamp_cursor(terminal_width, terminal_height);
         self.set_redraw_flag(true);
-    }
-
-    pub fn clamp_cursor(&mut self, terminal_width: usize, terminal_height: usize) {
-        let cur_line_len = self.current_line().len();
-        let buffer_lines_len = self.buffer.lines.len();
-        self.cursor_location.x = self.cursor_location.x.min(cur_line_len.saturating_sub(1));
-        self.cursor_location.y = self
-            .cursor_location
-            .y
-            .min(buffer_lines_len.saturating_sub(1));
-        self.scroll_offset.y = self
-            .scroll_offset
-            .y
-            .min(buffer_lines_len.saturating_sub(terminal_height));
-        self.scroll_offset.x = self
-            .scroll_offset
-            .x
-            .min(cur_line_len.saturating_sub(terminal_width));
-    }
-
-    pub fn current_line(&self) -> &str {
-        self.buffer
-            .lines
-            .get(self.cursor_location.y)
-            .map(String::as_str)
-            .unwrap_or("")
-    }
-
-    pub fn draw_welcome_message(&mut self, terminal: &mut Terminal) -> io::Result<()> {
-        let mut welcome_message = format!("{NAME} editor -- version {VERSION}");
-        let Size { width, height } = terminal.size()?;
-        let offset_y = 2_usize;
-
-        #[allow(clippy::integer_division)]
-        terminal.move_cursor_to(Position {
-            x: (width.saturating_sub(welcome_message.len())) / 2,
-            y: height.saturating_sub(offset_y),
-        });
-        // subtract 1 from width to let a space for tilde
-        welcome_message.truncate(width.saturating_sub(1_usize));
-        terminal.print(welcome_message)?;
-        Ok(())
     }
 }

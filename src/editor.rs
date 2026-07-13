@@ -107,10 +107,7 @@ impl Editor {
         let _ = self.terminal.hide_cursor();
 
         self.view.render(&mut self.terminal);
-        self.terminal.move_cursor_to(Position {
-            x: self.view.cursor_location.x - self.view.scroll_offset.x,
-            y: self.view.cursor_location.y - self.view.scroll_offset.y,
-        });
+        self.terminal.move_cursor_to(self.view.get_position());
 
         let _ = self.terminal.show_cursor();
         let _ = self.terminal.execute();
