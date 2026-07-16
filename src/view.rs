@@ -1,7 +1,7 @@
 use std::io;
 
 use crate::{
-    buffer::Buffer,
+    buffer::{Buffer, Line},
     terminal::{Location, Position, Size, Terminal},
 };
 
@@ -70,12 +70,8 @@ impl View {
         }
     }
 
-    pub fn current_line(&self) -> &str {
-        self.buffer
-            .lines
-            .get(self.cursor_location.y)
-            .map(String::as_str)
-            .unwrap_or("")
+    pub fn current_line(&self) -> Option<&Line> {
+        self.buffer.lines.get(self.cursor_location.y)
     }
 
     fn draw_welcome_message(&mut self, terminal: &mut Terminal) -> io::Result<()> {
@@ -115,7 +111,7 @@ impl View {
 
             let current_line_idx = current_row.saturating_add(self.scroll_offset.y);
             if let Some(line) = self.buffer.lines.get(current_line_idx) {
-                let truncated_line = line.get(self.scroll_offset.x..).unwrap_or("");
+                let truncated_line = line.get(self.scroll_offset.x..);
                 let print_line_result = terminal.print(truncated_line);
                 debug_assert!(print_line_result.is_ok(), "Failed to print line");
                 continue;
@@ -136,8 +132,14 @@ impl View {
     }
 
     fn clamp_cursor(&mut self, terminal_width: usize, terminal_height: usize) {
-        let cur_line_len = self.current_line().len();
+        let cur_line_len = self
+            .current_line()
+            .unwrap_or(&Line {
+                text: String::new(),
+            })
+            .len();
         let buffer_lines_len = self.buffer.lines.len();
+
         // allow place the cursor after the last character on the line (don't subtract 1)
         self.cursor_location.x = self.cursor_location.x.min(cur_line_len);
         // allow place the cursor below the last line (don't subtract 1)
@@ -159,7 +161,12 @@ impl View {
             width: terminal_width,
             height: terminal_height,
         } = terminal.size().unwrap_or_default();
-        let cur_line_len = self.current_line().len();
+        let cur_line_len = self
+            .current_line()
+            .unwrap_or(&Line {
+                text: String::new(),
+            })
+            .len();
         let buf_lines_len = self.buffer.lines.len();
 
         match action {
