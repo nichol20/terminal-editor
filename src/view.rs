@@ -1,7 +1,8 @@
 use std::io;
 
 use crate::{
-    buffer::{Buffer, Line},
+    buffer::Buffer,
+    line::Line,
     terminal::{Location, Position, Size, Terminal},
 };
 

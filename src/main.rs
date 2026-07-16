@@ -8,6 +8,7 @@
 )]
 mod buffer;
 mod editor;
+mod line;
 mod terminal;
 mod view;
 use crate::editor::Editor;
