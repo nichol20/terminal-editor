@@ -17,18 +17,32 @@ pub struct TextFragment {
 impl TextFragment {
     pub fn from(grapheme_str: &str) -> Self {
         let grapheme_width = grapheme_str.width();
+        let replacement = match grapheme_str {
+            "\t" => Some(' '),
+            // non-zero width whitespace
+            //_ if grapheme_width > 0 && grapheme_str.trim().is_empty() => Some('␣'),
+            _ => {
+                let mut chars = grapheme_str.chars();
+                match (chars.next(), chars.next()) {
+                    // Exactly one control character
+                    (Some(ch), None) if ch.is_control() => Some('▯'),
+
+                    // Exactly one non-control character (zero-width)
+                    (Some(_), None) if grapheme_width == 0 => Some('·'),
+
+                    // Multiple characters or normal text
+                    _ => None,
+                }
+            }
+        };
+
         Self {
             grapheme: grapheme_str.to_string(),
-            rendered_width: if grapheme_width >= 2 {
-                GraphemeWidth::Full
-            } else {
-                GraphemeWidth::Half
+            rendered_width: match grapheme_width {
+                0 | 1 => GraphemeWidth::Half,
+                _ => GraphemeWidth::Full,
             },
-            replacement: if grapheme_width == 0 {
-                Some('·')
-            } else {
-                None
-            },
+            replacement,
         }
     }
 
