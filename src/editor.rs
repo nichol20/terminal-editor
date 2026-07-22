@@ -4,9 +4,9 @@ use std::path::Path;
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, read};
 
+use crate::command::Action;
+use crate::command::Direction;
 use crate::terminal::Terminal;
-use crate::view::Action;
-use crate::view::Direction;
 use crate::view::View;
 
 #[derive(Default)]

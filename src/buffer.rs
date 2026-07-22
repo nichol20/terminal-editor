@@ -1,6 +1,8 @@
+mod line;
+
 use std::{fs::read_to_string, io};
 
-use crate::line::Line;
+pub(crate) use line::Line;
 
 #[derive(Default)]
 pub struct Buffer {
@@ -15,5 +17,13 @@ impl Buffer {
 
     pub fn is_empty(&self) -> bool {
         self.lines.len() == 0
+    }
+
+    pub fn line(&self, index: usize) -> Option<&Line> {
+        self.lines.get(index)
+    }
+
+    pub fn line_count(&self) -> usize {
+        self.lines.len()
     }
 }

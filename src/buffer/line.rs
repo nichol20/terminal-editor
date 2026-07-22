@@ -20,7 +20,7 @@ impl TextFragment {
         let replacement = match grapheme_str {
             "\t" => Some(' '),
             // non-zero width whitespace
-            //_ if grapheme_width > 0 && grapheme_str.trim().is_empty() => Some('␣'),
+            // _ if grapheme_width > 0 && grapheme_str.trim().is_empty() => Some('␣'),
             _ => {
                 let mut chars = grapheme_str.chars();
                 match (chars.next(), chars.next()) {

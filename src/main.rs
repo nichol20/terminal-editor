@@ -7,8 +7,8 @@
     clippy::integer_division
 )]
 mod buffer;
+mod command;
 mod editor;
-mod line;
 mod terminal;
 mod view;
 use crate::editor::Editor;

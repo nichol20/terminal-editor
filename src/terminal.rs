@@ -15,12 +15,6 @@ use crossterm::{
 };
 
 #[derive(Copy, Clone, Default)]
-pub struct Location {
-    pub x: usize,
-    pub y: usize,
-}
-
-#[derive(Copy, Clone, Default)]
 pub struct Size {
     pub width: usize,
     pub height: usize,
