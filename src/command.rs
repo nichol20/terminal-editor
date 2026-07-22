@@ -1,4 +1,5 @@
 #[allow(dead_code)]
+#[derive(Debug)]
 pub enum Direction {
     Position { x: usize, y: usize },
     Up(usize),
@@ -14,6 +15,7 @@ pub enum Direction {
     None,
 }
 
+#[derive(Debug)]
 pub enum Action {
     Move(Direction),
     Resize,

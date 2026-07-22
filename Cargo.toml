@@ -7,3 +7,5 @@ edition = "2024"
 crossterm = "0.29.0"
 unicode-segmentation = "1.13.3"
 unicode-width = "0.2.2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

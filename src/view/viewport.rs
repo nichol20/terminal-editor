@@ -3,7 +3,7 @@ use crate::{
     command::{Action, Direction},
 };
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, Debug)]
 pub(super) struct Cursor {
     pub(super) x: usize,
     pub(super) y: usize,
@@ -49,6 +49,7 @@ impl Viewport {
         let cur_line_len = self.current_line_len(buffer);
         let buf_line_count = buffer.line_count();
 
+        tracing::trace!(?action, ?self.cursor);
         match action {
             Action::Move(direction) => match direction {
                 Direction::Position { x, y } => {
